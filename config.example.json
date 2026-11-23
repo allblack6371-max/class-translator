@@ -1,0 +1,15 @@
+{
+  "port": 8787,
+  "asrLang": "auto",
+  "model": "models/ggml-base-q5_1.bin",
+  "threads": 8,
+  "binDir": "bin/whisper/Release",
+  "httpsPort": 8443,
+  "publicUrl": "",
+  "deepseekApiKey": "",
+  "llmBaseUrl": "https://api.deepseek.com/chat/completions",
+  "llmModel": "deepseek-chat",
+  "contextLines": 10,
+  "domain": "",
+  "glossary": ""
+}
