@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>课堂同传 · 主机</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: #0d0f14; color: #e8eaf0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px 48px; }
+  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 700; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 18px; }
+  .grid { display: grid; grid-template-columns: 1fr 280px; gap: 18px; align-items: start; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: #141822; border: 1px solid #202636; border-radius: 14px; padding: 16px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  select { background: #0e121a; color: #dfe3ea; border: 1px solid #2a3143; border-radius: 9px;
+    padding: 9px 10px; font-size: 13px; min-width: 0; flex: 1; }
+  button { border: 0; border-radius: 10px; padding: 10px 18px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: .15s; }
+  #startBtn { background: #2563eb; color: #fff; }
+  #startBtn.stop { background: #dc2626; }
+  #startBtn:disabled { background: #262c3a; color: #555d6e; cursor: not-allowed; }
+  .meter { height: 8px; background: #0b0e14; border-radius: 4px; overflow: hidden; margin: 14px 0 6px; }
+  .meter > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg,#22c55e,#eab308,#ef4444); transition: width .08s; }
+  .hint { font-size: 12px; color: #5b6476; line-height: 1.6; }
+  .status { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #9aa3b2; margin-bottom: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; }
+  .dot.on { background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
+  #qrBox { text-align: center; }
+  #qrBox img { width: 100%; max-width: 240px; background: #fff; border-radius: 10px; padding: 10px; }
+  #qrUrl { font-size: 12px; color: #7c8598; margin-top: 8px; word-break: break-all; }
+  #subtitles { margin-top: 18px; max-height: 340px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: #2a3143 transparent; overscroll-behavior: contain; }
+  #subtitles::-webkit-scrollbar { width: 6px; }
+  #subtitles::-webkit-scrollbar-thumb { background: #2a3143; border-radius: 3px; }
+  #subtitles::-webkit-scrollbar-track { background: transparent; }
+  .scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2a3143 transparent; overscroll-behavior: contain; }
+  .scroll-y::-webkit-scrollbar { width: 6px; }
+  .scroll-y::-webkit-scrollbar-thumb { background: #2a3143; border-radius: 3px; }
+  .scroll-y::-webkit-scrollbar-track { background: transparent; }
+  .line { padding: 8px 0 8px 12px; border-left: 2px solid #232a3a; margin-bottom: 10px; }
+  .line .zh { font-size: 18px; line-height: 1.5; color: #e2e6ee; }
+  .line .ko { font-size: 13px; color: #6b7488; margin-top: 3px; line-height: 1.5; }
+  .line .meta { font-size: 11px; color: #3f4657; margin-top: 4px; }
+  #waiting { color: #4b5563; font-size: 14px; padding: 22px 0; text-align: center; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #1b2233; color: #8b94a8; }
+  .badge.warn { background: #3a2416; color: #f0a05a; }
+  .cimg { max-width: 220px; max-height: 220px; border-radius: 8px; display: block; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <h1 data-i18n="title">课堂同传 · 主机</h1>
+    <select id="uiLang" style="flex:0 0 auto;width:auto;font-size:11px;color:#5b6478;background:transparent;border:1px solid #1f2530;border-radius:6px;padding:2px 5px;color-scheme:dark;outline:none;cursor:pointer;opacity:.8">
+      <option value="ko">한국어</option>
+      <option value="zh">中文</option>
+      <option value="en">EN</option>
+    </select>
+  </div>
+  <div class="sub" data-i18n="sub">用这台设备的麦克风收音，学生扫码即可看到实时中韩字幕</div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <div class="status"><span class="dot" id="wsDot"></span><span id="wsText" data-i18n="conn">连接服务器中…</span></div>
+        <div class="row">
+          <select id="devSel"><option data-i18n="devLoading">正在获取麦克风…</option></select>
+          <button id="startBtn" disabled data-i18n="start">开始收音</button>
+        </div>
+        <div class="meter"><i id="meterBar"></i></div>
+        <div class="row" style="justify-content:space-between">
+          <span class="hint" data-i18n="sens">灵敏度</span>
+          <input id="sens" type="range" min="0" max="100" value="34" style="flex:1;margin-left:12px">
+        </div>
+        <div class="hint" id="stat" style="margin-top:6px" data-i18n="statIdle">未开始</div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div style="font-size:13px;color:#9aa3b2;margin-bottom:10px" data-i18n="preview">字幕预览</div>
+        <div id="waiting" data-i18n="wait">开始收音后，这里会显示识别结果</div>
+        <div id="subtitles"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div style="font-size:13px;color:#9aa3b2;margin-bottom:10px" data-i18n="mode">课堂模式（点按钮切换）</div>
+        <div style="display:flex;gap:8px">
+          <button id="modeLecture" style="flex:1" data-i18n="lecture">🎓 老师讲课</button>
+          <button id="modeAsk" style="flex:1" data-i18n="ask">🙋 学生提问</button>
+        </div>
+        <div class="hint" style="margin-top:8px" data-i18n="lectureHint">老师讲课：麦克风收韩语/英语 → 字幕显示中文</div>
+        <div class="hint" data-i18n="askHint">学生提问：麦克风收中文 → 字幕显示韩语（给老师看）</div>
+        <div class="row" style="margin-top:12px;justify-content:space-between">
+          <span class="hint" data-i18n="talkPage">学生扫码提问页 /talk</span>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <input id="talkToggle" type="checkbox" checked> <span data-i18n="open">开放</span>
+          </label>
+        </div>
+        <div class="row" style="margin-top:8px;justify-content:space-between">
+          <span class="hint" data-i18n="stuVoice">允许学生用手机麦克风语音提问</span>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <input id="stuVoiceToggle" type="checkbox"> <span data-i18n="open">开放</span>
+          </label>
+        </div>
+        <div class="hint" id="modeStat" style="margin-top:8px">当前：老师讲课，字幕为中文</div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div id="talkHead" style="font-size:13px;color:#9aa3b2;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span data-i18n="talkTitle">学生对老师说（中→韩）</span><span id="talkArrow" style="font-size:12px">▾</span>
+        </div>
+        <div id="talkBody" class="scroll-y" style="max-height:220px">
+          <div id="talkList"><div class="hint" data-i18n="talkEmpty">学生打开 /talk 页面输入中文，这里会显示韩语译文</div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div id="chatHead" style="font-size:13px;color:#9aa3b2;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span data-i18n="chatTitle">课堂聊天室（中↔韩）</span><span id="chatArrow" style="font-size:12px">▾</span>
+        </div>
+        <div id="chatBody" class="scroll-y" style="max-height:260px">
+          <div id="hostChatList"><div class="hint" data-i18n="chatEmpty">学生打开观众页的「聊天室」，中文会自动翻成韩语，韩语会自动翻成中文</div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div id="histHead" style="font-size:13px;color:#9aa3b2;margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span data-i18n="histTitle">课程记录（每节课自动留存，可回看）</span><span id="histArrow" style="font-size:12px">▾</span>
+        </div>
+        <div id="histBody" class="scroll-y" style="max-height:260px">
+          <div id="hostHistList"><div class="hint" data-i18n="histEmpty">这节课的记录会出现在这里</div></div>
+          <div class="row" style="justify-content:space-between;margin-top:10px;align-items:center">
+            <span class="hint" id="histFile"></span>
+            <button id="newSession" data-i18n="newSession">开始新的一课</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div style="font-size:13px;color:#9aa3b2;margin-bottom:10px" data-i18n="gloss">教学设置（提升翻译准确率）</div>
+        <input id="domain" data-i18n-ph="domainPh" placeholder="课程领域，如：人工智能 / 机器学习 / 韩国近代史" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #223047;background:#0f1420;color:#e8edf7;font-size:13px;margin-bottom:8px">
+        <textarea id="glossary" rows="4" data-i18n-ph="glossaryPh" placeholder="术语对照，每行一条：原文=译文&#10;예: 머신러닝=机器学习&#10;예: 지도학습=监督学习" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #223047;background:#0f1420;color:#e8edf7;font-size:13px;resize:vertical"></textarea>
+        <div class="row" style="margin-top:8px;justify-content:space-between">
+          <span class="hint" id="glossStat" data-i18n="glossStat">填了之后会立即影响下一句翻译</span>
+          <button id="saveGloss" data-i18n="save">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="qrBox">
+      <div style="font-size:13px;color:#9aa3b2;margin-bottom:10px" data-i18n="qrTitle">学生扫码观看</div>
+      <img id="qrImg" alt="二维码">
+      <div id="qrUrl">—</div>
+      <div class="hint" style="margin-top:14px;text-align:left">
+        <span data-i18n="qrTip1">· 手机扫码即可看实时字幕（微信也能打开）</span><br>
+        <span data-i18n="qrTip2">· 建议电脑插耳机/用外接麦克风，避免外放啸叫</span><br>
+        <span data-i18n="qrTip3">· 学生不需要连同一个 Wi-Fi</span>
+      </div>
+      <div id="qrVoiceWrap" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid #1b1f2a">
+        <div style="font-size:13px;color:#f0c674;margin-bottom:10px" data-i18n="voiceTitle">🎤 手机语音提问（仅学生本人）</div>
+        <img id="qrVoiceImg" alt="语音提问二维码" style="width:100%;max-width:200px;background:#fff;border-radius:10px;padding:8px">
+        <div id="qrVoiceUrl" style="font-size:11px;color:#5b6478;margin-top:6px"></div>
+        <div class="hint" style="margin-top:8px;text-align:left" data-i18n="voiceTip">
+          用手机自带浏览器（Safari / Chrome / Edge）打开即可录音；<br>
+          微信里只能看字幕和打字。
+        </div>
+      </div>
+      <div id="keyBadge" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const el = {
+    devSel: $('#devSel'), startBtn: $('#startBtn'), meter: $('#meterBar'), stat: $('#stat'),
+    wsDot: $('#wsDot'), wsText: $('#wsText'), qrImg: $('#qrImg'), qrUrl: $('#qrUrl'),
+    qrVoiceWrap: $('#qrVoiceWrap'), qrVoiceImg: $('#qrVoiceImg'), qrVoiceUrl: $('#qrVoiceUrl'),
+    subs: $('#subtitles'), waiting: $('#waiting'), sens: $('#sens'), keyBadge: $('#keyBadge'),
+    domain: $('#domain'), glossary: $('#glossary'), saveGloss: $('#saveGloss'),
+    glossStat: $('#glossStat'), talkList: $('#talkList'), hostChatList: $('#hostChatList'),
+    modeLecture: $('#modeLecture'), modeAsk: $('#modeAsk'), talkToggle: $('#talkToggle'), modeStat: $('#modeStat'),
+    stuVoiceToggle: $('#stuVoiceToggle'),
+  };
+
+  // ---------- 界面语言（中文 / 韩语 / 英文） ----------
+  const I18N = {
+    zh: {
+      title: '课堂同传 · 主机',
+      sub: '用这台设备的麦克风收音，学生扫码即可看到实时中韩字幕',
+      conn: '连接服务器中…', connected: '已连接', reconn: '已断开，重连中…',
+      devLoading: '正在获取麦克风…', noDev: '未发现麦克风', micN: '麦克风', devFail: '无法获取设备（需 https 或 localhost）',
+      start: '开始收音', stop: '停止收音',
+      sens: '灵敏度', statIdle: '未开始',
+      preview: '字幕预览', wait: '开始收音后，这里会显示识别结果',
+      mode: '课堂模式（点按钮切换）',
+      lecture: '🎓 老师讲课', ask: '🙋 学生提问',
+      lectureHint: '老师讲课：麦克风收韩语/英语 → 字幕显示中文',
+      askHint: '学生提问：麦克风收中文 → 字幕显示韩语（给老师看）',
+      talkPage: '学生扫码提问页 /talk', open: '开放', stuVoice: '允许学生用手机麦克风语音提问',
+      modeCur: '当前：老师讲课，麦克风收韩/英，字幕为中文',
+      modeCurAsk: '当前：学生提问，麦克风收中文，字幕为韩语',
+      talkTitle: '学生对老师说（中→韩）',
+      talkEmpty: '学生打开 /talk 页面输入中文，这里会显示韩语译文',
+      chatTitle: '课堂聊天室（中↔韩）',
+      chatEmpty: '学生打开观众页的「聊天室」，中文会自动翻成韩语，韩语会自动翻成中文',
+      histTitle: '课程记录（每节课自动留存，可回看）',
+      histEmpty: '这节课的记录会出现在这里',
+      newSession: '开始新的一课',
+      gloss: '教学设置（提升翻译准确率）',
+      domainPh: '课程领域，如：人工智能 / 机器学习 / 韩国近代史',
+      glossaryPh: '术语对照，每行一条：原文=译文',
+      glossStat: '填了之后会立即影响下一句翻译',
+      glossSaving: '保存中…', glossSaved: '已保存，从下一句开始生效', glossFail: '保存失败',
+      save: '保存',
+      qrTitle: '学生扫码观看',
+      qrTip1: '· 手机扫码即可看实时字幕（微信也能打开）',
+      qrTip2: '· 建议电脑插耳机/用外接麦克风，避免外放啸叫',
+      qrTip3: '· 学生不需要连同一个 Wi-Fi',
+      voiceTitle: '🎤 手机语音提问（仅学生本人）',
+      voiceTip: '用手机自带浏览器（Safari / Chrome / Edge）打开即可录音；微信里只能看字幕和打字。',
+      voiceUrlText: '同一个地址，用手机自带浏览器（Safari / Chrome / Edge）打开即可录音',
+      hasKey: '翻译已启用', noKey: '未配置 DeepSeek key，只显示韩语',
+      noise: '跳过一段环境噪音', sent: '已发送', seg: '段 · 最近段',
+      secureWarn: '⚠ 当前不是安全上下文（http + IP）→ 浏览器会禁用麦克风。请改用 http://localhost:8787/host 打开本页。',
+      noMicWarn: '⚠ 浏览器不支持或已禁用麦克风接口，请用 Chrome/Edge 打开。',
+      model: '模型', history: '历史',
+    },
+    ko: {
+      title: '수업 동시통역 · 호스트',
+      sub: '이 기기의 마이크로 녹음하면 학생이 QR로 실시간 한·중 자막을 볼 수 있습니다',
+      conn: '서버 연결 중…', connected: '연결됨', reconn: '연결 끊김, 재연결 중…',
+      devLoading: '마이크 확인 중…', noDev: '마이크 없음', micN: '마이크', devFail: '장치를 가져올 수 없음 (https 또는 localhost 필요)',
+      start: '녹음 시작', stop: '녹음 중지',
+      sens: '감도', statIdle: '아직 시작하지 않음',
+      preview: '자막 미리보기', wait: '녹음을 시작하면 인식 결과가 여기에 표시됩니다',
+      mode: '수업 모드 (버튼으로 전환)',
+      lecture: '🎓 교수 강의', ask: '🙋 학생 질문',
+      lectureHint: '교수 강의: 마이크로 한/영 수음 → 자막은 중국어',
+      askHint: '학생 질문: 마이크로 중국어 수음 → 자막은 한국어 (교수용)',
+      talkPage: '학생 질문 페이지 /talk', open: '열기', stuVoice: '학생이 휴대폰 마이크로 음성 질문 허용',
+      modeCur: '현재: 교수 강의, 자막은 중국어',
+      modeCurAsk: '현재: 학생 질문, 마이크로 중국어 수음, 자막은 한국어',
+      talkTitle: '학생 → 교수 (중→한)',
+      talkEmpty: '학생이 /talk 페이지에서 중국어를 입력하면 여기에 한국어 번역이 표시됩니다',
+      chatTitle: '수업 채팅방 (중↔한)',
+      chatEmpty: '학생이 시청자 페이지의 「채팅방」을 열면 중국어는 한국어로, 한국어는 중국어로 자동 번역됩니다',
+      histTitle: '수업 기록 (매 수업 자동 저장, 다시 보기)',
+      histEmpty: '이 수업의 기록이 여기에 표시됩니다',
+      newSession: '새 수업 시작',
+      gloss: '수업 설정 (번역 정확도 향상)',
+      domainPh: '수업 분야, 예: 인공지능 / 머신러닝 / 한국 근대사',
+      glossaryPh: '용어 대조, 한 줄에 하나: 원문=번역',
+      glossStat: '입력하면 다음 문장 번역부터 바로 반영됩니다',
+      glossSaving: '저장 중…', glossSaved: '저장됨, 다음 문장부터 적용', glossFail: '저장 실패',
+      save: '저장',
+      qrTitle: '학생 QR 스캔',
+      qrTip1: '· 휴대폰으로 스캔하면 실시간 자막을 볼 수 있습니다 (위챗도 가능)',
+      qrTip2: '· 노트북에 이어폰/외장 마이크 사용을 권장합니다',
+      qrTip3: '· 학생은 같은 Wi-Fi에 연결할 필요가 없습니다',
+      voiceTitle: '🎤 휴대폰 음성 질문 (학생 본인만)',
+      voiceTip: '휴대폰 기본 브라우저(Safari / Chrome / Edge)로 열면 녹음할 수 있습니다; 위챗에서는 자막과 타이핑만 가능합니다.',
+      voiceUrlText: '같은 주소를 휴대폰 기본 브라우저로 열면 녹음할 수 있습니다',
+      hasKey: '번역 활성화됨', noKey: 'DeepSeek key 미설정, 한국어만 표시',
+      noise: '환경 소음 한 구간 건너뜀', sent: '전송됨', seg: '구간 · 최근 구간',
+      secureWarn: '⚠ 보안 컨텍스트가 아닙니다 (http + IP) → 브라우저가 마이크를 차단합니다. http://localhost:8787/host 로 여세요.',
+      noMicWarn: '⚠ 브라우저가 마이크 API를 지원하지 않거나 비활성화되었습니다. Chrome/Edge를 사용하세요.',
+      model: '모델', history: '기록',
+    },
+    en: {
+      title: 'Class Interpreter · Host',
+      sub: 'Record with this device\'s mic; students scan the QR for live Chinese/Korean subtitles',
+      conn: 'Connecting…', connected: 'Connected', reconn: 'Disconnected, reconnecting…',
+      devLoading: 'Detecting microphone…', noDev: 'No microphone found', micN: 'Microphone', devFail: 'Cannot access device (needs https or localhost)',
+      start: 'Start', stop: 'Stop',
+      sens: 'Sensitivity', statIdle: 'Not started',
+      preview: 'Subtitle preview', wait: 'Subtitles appear here after you start',
+      mode: 'Class mode (click to switch)',
+      lecture: '🎓 Lecture', ask: '🙋 Student Q&A',
+      lectureHint: 'Lecture: mic hears Korean/English → Chinese subtitles',
+      askHint: 'Q&A: mic hears Chinese → Korean subtitles (for teacher)',
+      talkPage: 'Student question page /talk', open: 'Open', stuVoice: 'Allow students to ask by phone mic',
+      modeCur: 'Current: lecture, subtitles in Chinese',
+      modeCurAsk: 'Current: student Q&A, subtitles in Korean',
+      talkTitle: 'Student → Teacher (ZH→KO)',
+      talkEmpty: 'Students type Chinese on /talk; Korean translation appears here',
+      chatTitle: 'Class chat (ZH↔KO)',
+      chatEmpty: 'Students open Chat in the viewer; Chinese↔Korean is auto-translated',
+      histTitle: 'Lesson records (auto-saved, reviewable)',
+      histEmpty: 'This lesson\'s records appear here',
+      newSession: 'Start new lesson',
+      gloss: 'Teaching settings (better accuracy)',
+      domainPh: 'Course domain, e.g. AI / Machine Learning / Modern Korean History',
+      glossaryPh: 'Glossary, one per line: source=target',
+      glossStat: 'Takes effect from the next sentence',
+      glossSaving: 'Saving…', glossSaved: 'Saved, applies from next sentence', glossFail: 'Save failed',
+      save: 'Save',
+      qrTitle: 'Scan to watch',
+      qrTip1: '· Scan with a phone to see live subtitles (WeChat works)',
+      qrTip2: '· Use earphones or an external mic to avoid feedback',
+      qrTip3: '· Students do not need to be on the same Wi-Fi',
+      voiceTitle: '🎤 Voice question (student only)',
+      voiceTip: 'Open with the phone\'s own browser (Safari / Chrome / Edge) to record; WeChat only shows subtitles and typing.',
+      voiceUrlText: 'Same address — open with the phone\'s own browser to record',
+      hasKey: 'Translation enabled', noKey: 'No DeepSeek key, Korean only',
+      noise: 'Skipped a noisy segment', sent: 'Sent', seg: 'seg · last',
+      secureWarn: '⚠ Not a secure context (http + IP) → the browser blocks the mic. Open http://localhost:8787/host instead.',
+      noMicWarn: '⚠ This browser does not support the mic API. Use Chrome/Edge.',
+      model: 'Model', history: 'History',
+    },
+  };
+  let LANG = localStorage.getItem('host_lang') || 'zh';
+  function t(k) { return (I18N[LANG] && I18N[LANG][k]) || I18N.zh[k] || k; }
+  function applyLang() {
+    document.querySelectorAll('[data-i18n]').forEach((n) => { const v = t(n.dataset.i18n); if (v) n.textContent = v; });
+    document.querySelectorAll('[data-i18n-ph]').forEach((n) => { n.placeholder = t(n.dataset.i18nPh); });
+    if (el.uiLang) el.uiLang.value = LANG;
+    if (el.startBtn && !running) el.startBtn.textContent = t('start');
+    if (el.modeStat) el.modeStat.textContent = curMode === 'ask' ? t('modeCurAsk') : t('modeCur');
+    document.documentElement.lang = LANG === 'ko' ? 'ko' : (LANG === 'en' ? 'en' : 'zh-CN');
+  }
+  el.uiLang = $('#uiLang');
+  if (el.uiLang) {
+    el.uiLang.onchange = () => { LANG = el.uiLang.value; localStorage.setItem('host_lang', LANG); applyLang(); };
+  }
+
+  // ---------- 服务端信息 ----------
+  fetch('/api/info').then(r => r.json()).then(info => {
+    el.qrUrl.textContent = info.viewUrl;
+    el.qrImg.src = '/api/qr?data=' + encodeURIComponent(info.publicUrl || info.viewUrl);
+    el.qrUrl.textContent = info.publicUrl || info.viewUrl;
+    if (info.publicUrl) {
+      el.qrVoiceWrap.style.display = 'block';
+      el.qrVoiceImg.style.display = 'none';
+      el.qrVoiceUrl.textContent = t('voiceUrlText');
+    } else if (info.httpsUrl) {
+      el.qrVoiceWrap.style.display = 'block';
+      el.qrVoiceImg.style.display = '';
+      el.qrVoiceImg.src = '/api/qr?data=' + encodeURIComponent(info.httpsUrl);
+      el.qrVoiceUrl.textContent = info.httpsUrl;
+    }
+    el.keyBadge.innerHTML = info.hasKey
+      ? '<span class="badge">' + t('hasKey') + '</span>'
+      : '<span class="badge warn">' + t('noKey') + '</span>';
+    el.stat.textContent = `${t('model')} ${info.model} · ${info.asrLang} · ${t('history')} ${info.history.length}`;
+    if (info.domain) el.domain.value = info.domain;
+    if (info.glossary) el.glossary.value = info.glossary;
+    applyMode(info.mode, info.talkEnabled);
+    if (el.stuVoiceToggle) el.stuVoiceToggle.checked = !!info.stuVoiceEnabled;
+    curFile = info.sessionFile || '';
+    if (!window.isSecureContext) {
+      el.stat.textContent = t('secureWarn');
+    } else if (!navigator.mediaDevices?.getUserMedia) {
+      el.stat.textContent = t('noMicWarn');
+    }
+  }).catch(() => {});
+
+  // ---------- 教学设置保存 ----------
+  el.saveGloss.onclick = async () => {
+    el.glossStat.textContent = t('glossSaving');
+    try {
+      const r = await fetch('/api/glossary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: el.domain.value, glossary: el.glossary.value }),
+      });
+      const j = await r.json();
+      el.glossStat.textContent = j.ok ? t('glossSaved') : t('glossFail');
+    } catch {
+      el.glossStat.textContent = t('glossFail');
+    }
+  };
+
+  // ---------- 课堂模式 / 学生提问开关 ----------
+  let curMode = 'lecture';
+  function applyMode(m, enabled) {
+    curMode = m === 'ask' ? 'ask' : 'lecture';
+    if (el.modeLecture && el.modeAsk) {
+      el.modeLecture.style.background = curMode === 'lecture' ? '#1d4d3a' : '';
+      el.modeLecture.style.borderColor = curMode === 'lecture' ? '#2f6b52' : '';
+      el.modeAsk.style.background = curMode === 'ask' ? '#1d4d3a' : '';
+      el.modeAsk.style.borderColor = curMode === 'ask' ? '#2f6b52' : '';
+    }
+    if (el.modeStat) {
+      el.modeStat.textContent = curMode === 'ask' ? t('modeCurAsk') : t('modeCur');
+    }
+    if (typeof enabled === 'boolean' && el.talkToggle) el.talkToggle.checked = enabled;
+  }
+  async function setMode(next) {
+    if (curMode === next) return;
+    el.modeLecture.disabled = el.modeAsk.disabled = true;
+    try {
+      const r = await fetch('/api/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: next }) });
+      const j = await r.json();
+      if (j.ok) applyMode(j.mode);
+    } catch {}
+    el.modeLecture.disabled = el.modeAsk.disabled = false;
+  }
+  el.modeLecture.onclick = () => setMode('lecture');
+  el.modeAsk.onclick = () => setMode('ask');
+  el.talkToggle.onchange = async () => {
+    try {
+      await fetch('/api/talk-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: el.talkToggle.checked }) });
+    } catch {}
+  };
+  el.stuVoiceToggle.onchange = async () => {
+    try {
+      await fetch('/api/stu-voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: el.stuVoiceToggle.checked }) });
+    } catch {}
+  };
+
+  // ---------- 麦克风列表 ----------
+  async function listDevices() {
+    try {
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      const ins = devs.filter(d => d.kind === 'audioinput');
+      el.devSel.innerHTML = '';
+      if (!ins.length) { el.devSel.innerHTML = '<option>' + t('noDev') + '</option>'; return; }
+      for (const d of ins) {
+        const o = document.createElement('option');
+        o.value = d.deviceId;
+        o.textContent = d.label || t('micN') + ' ' + (el.devSel.length + 1);
+        el.devSel.appendChild(o);
+      }
+      el.startBtn.disabled = false;
+    } catch (e) {
+      el.devSel.innerHTML = '<option>' + t('devFail') + '</option>';
+    }
+  }
+  listDevices();
+  navigator.mediaDevices?.addEventListener?.('devicechange', listDevices);
+
+  // ---------- 音频工具 ----------
+  const TARGET_RATE = 16000;
+  function resample(input, fromRate) {
+    if (fromRate === TARGET_RATE) return input;
+    const ratio = fromRate / TARGET_RATE;
+    const outLen = Math.floor(input.length / ratio);
+    const out = new Float32Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+      const pos = i * ratio, i0 = Math.floor(pos), i1 = Math.min(i0 + 1, input.length - 1);
+      const f = pos - i0;
+      out[i] = input[i0] * (1 - f) + input[i1] * f;
+    }
+    return out;
+  }
+  function encodeWav(samples, sampleRate) {
+    const n = samples.length;
+    const buf = new ArrayBuffer(44 + n * 2);
+    const v = new DataView(buf);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE');
+    w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, 'data'); v.setUint32(40, n * 2, true);
+    let o = 44;
+    for (let i = 0; i < n; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      o += 2;
+    }
+    return buf;
+  }
+  function concat(chunks, total) {
+    const out = new Float32Array(total);
+    let o = 0;
+    for (const c of chunks) { out.set(c, o); o += c.length; }
+    return out;
+  }
+
+  // ---------- VAD 切段 ----------
+  const FRAME = 640;                    // 40ms @16k
+  let state = 'idle';                   // idle | speech
+  let seg = [], segLen = 0, silence = 0, pre = [];
+  let threshold = 0.012 * 2 ** ((34 - 34) / 50);
+  const SILENCE_MS = 550, MIN_MS = 600, MAX_MS = 12000, PREROLL_MS = 300;
+
+  function sensToTh(v) { return 0.0045 * Math.pow(2, v / 20); }   // 0..100 → ~0.0045..~0.14
+
+  let wsHost = null;
+  let lastLevelSent = 0;
+
+  function processFrame(f) {
+    let sum = 0;
+    for (let i = 0; i < f.length; i++) sum += f[i] * f[i];
+    const rms = Math.sqrt(sum / f.length);
+    const db = Math.min(1, rms * 6);
+    el.meter.style.width = (db * 100).toFixed(0) + '%';
+    // 每隔 ~150ms 把电平发给控制台（让后台能看到录音端是否在收音）
+    const now = performance.now();
+    if (wsHost && wsHost.readyState === 1 && now - lastLevelSent > 150) {
+      lastLevelSent = now;
+      try { wsHost.send(JSON.stringify({ type: 'level', v: db })); } catch {}
+    }
+
+    if (state === 'idle') {
+      if (rms > threshold) {
+        state = 'speech'; seg = [...pre]; segLen = pre.reduce((a, c) => a + c.length, 0);
+        seg.push(f); segLen += f.length; silence = 0; pre = [];
+      } else {
+        pre.push(f);
+        const maxPre = Math.ceil(PREROLL_MS / 40);
+        if (pre.length > maxPre) pre.shift();
+      }
+    } else {
+      seg.push(f); segLen += f.length;
+      if (rms > threshold) silence = 0; else silence += 40;
+      const ms = segLen / TARGET_RATE * 1000;
+      if ((silence >= SILENCE_MS && ms >= MIN_MS) || ms >= MAX_MS) {
+        flushSeg();
+      }
+    }
+  }
+
+  function flushSeg() {
+    const all = concat(seg, segLen);
+    seg = []; segLen = 0; silence = 0; state = 'idle';
+    if (all.length < TARGET_RATE * 0.4) return;
+    // 整段平均音量太低 → 是环境噪音，不要送上去让 whisper 编句子
+    let sum = 0;
+    for (let i = 0; i < all.length; i++) sum += all[i] * all[i];
+    const avgRms = Math.sqrt(sum / all.length);
+    if (avgRms < threshold * 0.85) { el.stat.textContent = t('noise'); return; }
+    if (wsHost && wsHost.readyState === 1) {
+      wsHost.send(encodeWav(all, TARGET_RATE));
+      sentCount++;
+      el.stat.textContent = `${t('sent')} ${sentCount} ${t('seg')} ${(all.length / TARGET_RATE).toFixed(1)}s`;
+    }
+  }
+
+  // ---------- 启动 ----------
+  let audioCtx = null, stream = null, proc = null, running = false, sentCount = 0;
+
+  el.startBtn.onclick = async () => {
+    if (running) { stop(); return; }
+    try {
+      const devId = el.devSel.value;
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: devId ? { exact: devId } : undefined,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+      });
+      audioCtx = new AudioContext({ sampleRate: TARGET_RATE });
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
+      const src = audioCtx.createMediaStreamSource(stream);
+      proc = audioCtx.createScriptProcessor(4096, 1, 1);
+      const mute = audioCtx.createGain(); mute.gain.value = 0;
+      src.connect(proc); proc.connect(mute); mute.connect(audioCtx.destination);
+
+      let acc = new Float32Array(0);
+      proc.onaudioprocess = (e) => {
+        const raw = e.inputBuffer.getChannelData(0);
+        const rs = resample(raw, audioCtx.sampleRate);
+        const merged = new Float32Array(acc.length + rs.length);
+        merged.set(acc); merged.set(rs, acc.length);
+        let off = 0;
+        while (off + FRAME <= merged.length) {
+          processFrame(merged.subarray(off, off + FRAME));
+          off += FRAME;
+        }
+        acc = merged.slice(off);
+      };
+
+      running = true;
+      sendRecState(true);
+      el.startBtn.textContent = t('stop');
+      el.startBtn.classList.add('stop');
+      el.stat.textContent = `采样率 ${audioCtx.sampleRate}Hz · 开始聆听`;
+    } catch (e) {
+      const secure = window.isSecureContext;
+      let msg;
+      if (e.name === 'NotAllowedError') {
+        msg = '浏览器拒绝了麦克风权限。点地址栏左侧的锁/设置图标 → 麦克风 → 允许；或打开 chrome://settings/content/microphone 把本站设为允许。';
+      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+        msg = '系统里没找到可用麦克风，检查设备是否被禁用。';
+      } else if (e.name === 'NotReadableError') {
+        msg = '麦克风被其他程序占用（会议软件/录音软件），先关掉再试。';
+      } else if (!navigator.mediaDevices) {
+        msg = '此页面无法访问麦克风：必须用 http://localhost:8787/host 或 https 打开，不能用 IP 地址。';
+      } else {
+        msg = `麦克风启动失败：${e.name} ${e.message}`;
+      }
+      el.stat.textContent = (secure ? '' : '〔非安全上下文〕') + msg;
+    }
+  };
+
+  function sendRecState(v) {
+    try { if (wsHost && wsHost.readyState === 1) wsHost.send(JSON.stringify({ type: 'recState', running: !!v })); } catch {}
+  }
+
+  function stop() {
+    running = false;
+    sendRecState(false);
+    try { if (proc) proc.onaudioprocess = null; } catch {}
+    try { stream && stream.getTracks().forEach(t => t.stop()); } catch {}
+    try { audioCtx && audioCtx.close(); } catch {}
+    proc = stream = audioCtx = null;
+    el.startBtn.textContent = t('start');
+    el.startBtn.classList.remove('stop');
+    el.meter.style.width = '0%';
+    el.stat.textContent = t('statIdle');
+  }
+
+  el.sens.oninput = () => { threshold = sensToTh(+el.sens.value); };
+  threshold = sensToTh(+el.sens.value);
+
+  // ---------- WebSocket ----------
+  function connectHost() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    wsHost = new WebSocket(`${proto}://${location.host}/ws/host`);
+    wsHost.binaryType = 'arraybuffer';
+    wsHost.onopen = () => { el.wsDot.classList.add('on'); el.wsText.textContent = t('connected'); };
+    wsHost.onclose = () => {
+      el.wsDot.classList.remove('on'); el.wsText.textContent = t('reconn');
+      setTimeout(connectHost, 1500);
+    };
+    wsHost.onmessage = (e) => {
+      try {
+        const m = JSON.parse(e.data);
+        if (m.type === 'hello') {
+          el.wsText.textContent = t('connected') + ' · ' + m.model;
+          if (!m.hasKey) el.keyBadge.innerHTML = '<span class="badge warn">未配置翻译 key</span>';
+        }
+        if (m.type === 'hostCmd') {
+          if (m.cmd === 'start') {
+            if (!running) el.startBtn.click();
+            el.stat.textContent = '控制台已远程开始收音';
+          } else if (m.cmd === 'stop') {
+            if (running) stop();
+            else sendRecState(false);
+            el.stat.textContent = '控制台已远程停止收音';
+          }
+        }
+      } catch {}
+    };
+  }
+
+  function connectView() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/ws/view`);
+    ws.onmessage = (e) => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.type === 'init') {
+        const es = m.entries || [];
+        if (es.length) {
+          applyEntries(es);
+        } else {
+          el.waiting.style.display = m.history.length ? 'none' : 'block';
+          for (const h of m.history) addLine(h);
+          for (const c of (m.chat || [])) addChat(c);
+        }
+      } else if (m.type === 'partial') {
+        renderPartial(m);
+      } else if (m.type === 'partial-cancel') {
+        cancelPartial(m.id);
+      } else if (m.type === 'subtitle') {
+        cancelPartial(m.id);
+        addLine(m);
+      } else if (m.type === 'revision') {
+        const t = el.subs.querySelector(`.line[data-id="${m.id}"] .zh`);
+        if (t) t.textContent = m.zh;
+      } else if (m.type === 'chat') {
+        addChat(m);
+      } else if (m.type === 'talk') {
+        addTalkLine(m);
+        addTalk(m);
+      } else if (m.type === 'mode') {
+        applyMode(m.mode);
+      } else if (m.type === 'talkState') {
+        applyMode(curMode, m.enabled);
+      } else if (m.type === 'stuVoice') {
+        if (el.stuVoiceToggle) el.stuVoiceToggle.checked = !!m.enabled;
+      } else if (m.type === 'resumed') {
+        applyEntries(m.entries || []);
+        curFile = m.file || curFile;
+        loadSessions();
+      } else if (m.type === 'clear') {
+        el.subs.innerHTML = '';
+        el.talkList.innerHTML = '';
+        el.hostChatList.innerHTML = '<div class="hint">学生打开观众页的「聊天室」，中文会自动翻成韩语，韩语会自动翻成中文</div>';
+        loadSessions();
+      }
+    };
+    ws.onclose = () => setTimeout(connectView, 1500);
+  }
+
+  // ---------- 字幕框磁吸跟随 ----------
+  let subsStick = true, subsAuto = false, subsIdle = 0;
+  const SUBS_IDLE_MS = 30000;
+  const subsAtBottom = () => el.subs.scrollHeight - el.subs.scrollTop - el.subs.clientHeight <= 24;
+  function subsFollow() {
+    subsStick = true;
+    clearTimeout(subsIdle); subsIdle = 0;
+    subsAuto = true;
+    el.subs.scrollTop = el.subs.scrollHeight;
+    requestAnimationFrame(() => requestAnimationFrame(() => { subsAuto = false; }));
+  }
+  function subsPause() {
+    subsStick = false;
+    clearTimeout(subsIdle);
+    subsIdle = setTimeout(subsFollow, SUBS_IDLE_MS);
+  }
+  el.subs.addEventListener('scroll', () => {
+    if (subsAuto) return;
+    if (subsAtBottom()) { clearTimeout(subsIdle); subsIdle = 0; subsStick = true; }
+    else subsPause();
+  }, { passive: true });
+
+  function addLine(item) {
+    el.waiting.style.display = 'none';
+    const d = document.createElement('div');
+    d.className = 'line';
+    if (item.id) d.dataset.id = item.id;
+    d.innerHTML = `<div class="zh"></div><div class="ko"></div><div class="meta"></div>`;
+    d.querySelector('.zh').textContent = item.zh || '（未翻译）';
+    d.querySelector('.ko').textContent = item.ko || '';
+    d.querySelector('.meta').textContent =
+      new Date(item.t).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+      (item.asrMs ? ` · 识别 ${item.asrMs}ms` : '') + (item.totalMs ? ` · 总计 ${item.totalMs}ms` : '');
+    el.subs.appendChild(d);
+    if (subsStick) subsFollow();
+  }
+
+  // 流式翻译：临时行边生成边更新，定稿时由 addLine 替换
+  let pendingLine = null, pendingId = 0;
+  function renderPartial(m) {
+    if (!m.id) return;
+    if (!pendingLine || pendingId !== m.id) {
+      el.waiting.style.display = 'none';
+      const d = document.createElement('div');
+      d.className = 'line';
+      d.innerHTML = `<div class="zh"></div><div class="ko"></div><div class="meta"></div>`;
+      el.subs.appendChild(d);
+      pendingLine = d; pendingId = m.id;
+      if (subsStick) subsFollow();
+    }
+    pendingLine.querySelector('.zh').textContent = m.zh || '（翻译中…）';
+    pendingLine.querySelector('.ko').textContent = m.ko || '';
+  }
+  function cancelPartial(id) {
+    if (pendingLine && pendingId === id) { pendingLine.remove(); pendingLine = null; pendingId = 0; }
+  }
+
+  // 学生提问插进字幕流：普通一行，前面加个学生图标，打字来源加括号说明
+  function addTalkLine(item) {
+    el.waiting.style.display = 'none';
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.innerHTML = `<div class="zh"></div><div class="ko"></div>`;
+    d.querySelector('.zh').textContent = '学生：' + (item.zh || '') + (item.via === 'text' ? '（打字输入）' : '');
+    d.querySelector('.ko').textContent = item.ko || '';
+    el.subs.appendChild(d);
+    if (subsStick) subsFollow();
+  }
+
+  function addChat(item) {
+    if (el.hostChatList.querySelector('.hint')) el.hostChatList.innerHTML = '';
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.innerHTML = `<div class="zh"></div><div class="ko"></div>`;
+    d.querySelector('.zh').textContent = (item.from || '匿名') + (item.sid ? '（' + item.sid + '）' : '') + '：' + (item.zh || '');
+    d.querySelector('.ko').textContent = item.ko || '';
+    if (item.image) {
+      const im = document.createElement('img');
+      im.className = 'cimg'; im.src = item.image; im.loading = 'lazy';
+      d.appendChild(im);
+    }
+    el.hostChatList.appendChild(d);
+  }
+
+  // 课堂聊天室：点击标题折叠/展开
+  let chatCollapsed = false;
+  $('#chatHead').onclick = () => {
+    chatCollapsed = !chatCollapsed;
+    $('#chatBody').style.display = chatCollapsed ? 'none' : '';
+    $('#chatArrow').textContent = chatCollapsed ? '▸' : '▾';
+  };
+
+  function addTalk(item) {
+    if (el.talkList.querySelector('.hint')) el.talkList.innerHTML = '';
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.innerHTML = `<div class="zh"></div><div class="ko" style="font-size:17px;font-weight:600"></div>`;
+    d.querySelector('.zh').textContent = '学生：' + (item.zh || '');
+    d.querySelector('.ko').textContent = item.ko || '';
+    el.talkList.appendChild(d);
+  }
+
+  // 学生对老师说：点击标题折叠/展开
+  let talkCollapsed = false;
+  $('#talkHead').onclick = () => {
+    talkCollapsed = !talkCollapsed;
+    $('#talkBody').style.display = talkCollapsed ? 'none' : '';
+    $('#talkArrow').textContent = talkCollapsed ? '▸' : '▾';
+  };
+
+  // 统一按条目重建三个列表（init / resumed 共用）
+  function applyEntries(es) {
+    el.subs.innerHTML = '';
+    el.hostChatList.innerHTML = '';
+    el.talkList.innerHTML = '';
+    el.waiting.style.display = 'none';
+    for (const e of es) {
+      if (e.kind === 'chat') addChat(e);
+      else if (e.kind === 'talk') { addTalkLine(e); addTalk(e); }
+      else addLine(e);
+    }
+  }
+
+  // ---------- 课程记录（每节课留存，课后可回看） ----------
+  let histCollapsed = false;
+  let curFile = '';
+  function fmtTime(ms) { return new Date(ms).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  $('#histHead').onclick = () => {
+    histCollapsed = !histCollapsed;
+    $('#histBody').style.display = histCollapsed ? 'none' : '';
+    $('#histArrow').textContent = histCollapsed ? '▸' : '▾';
+    if (!histCollapsed) loadSessions();
+  };
+  async function loadSessions() {
+    const box = $('#hostHistList');
+    box.innerHTML = '<div class="hint">加载中…</div>';
+    try {
+      const j = await (await fetch('/api/sessions')).json();
+      const list = j.list || [];
+      box.innerHTML = '';
+      if (!list.length) { box.innerHTML = '<div class="hint">还没有课堂记录</div>'; return; }
+      for (const s of list) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #1c2230';
+        row.innerHTML = '<div style="flex:1;min-width:0;cursor:pointer"><div style="font-size:13px;color:#d8dee9"></div><div style="font-size:11px;color:#5b6478;margin-top:2px"></div></div><button data-act="resume" style="flex:none;font-size:11px;padding:2px 6px;background:#16233a;border:1px solid #2a4463;color:#8fb3d9;border-radius:6px;cursor:pointer">继续</button><button data-act="del" style="flex:none;font-size:11px;padding:2px 6px;background:#2a1a1a;border:1px solid #4a2a2a;color:#c98a8a;border-radius:6px;cursor:pointer">删除</button>';
+        row.children[0].children[0].textContent = fmtTime(s.start || s.mtime);
+        row.children[0].children[1].textContent = s.count + ' 条' + (s.file === curFile ? ' · 当前' : '');
+        row.children[0].onclick = () => viewSession(s.file);
+        row.querySelector('[data-act="resume"]').onclick = async (ev) => {
+          ev.stopPropagation();
+          await resumeSession(s.file);
+        };
+        row.querySelector('[data-act="del"]').onclick = async (ev) => {
+          ev.stopPropagation();
+          await fetch('/api/session?file=' + encodeURIComponent(s.file), { method: 'DELETE' });
+          loadSessions();
+        };
+        box.appendChild(row);
+      }
+    } catch { box.innerHTML = '<div class="hint">加载失败</div>'; }
+  }
+  async function viewSession(file) {
+    const box = $('#hostHistList');
+    box.innerHTML = '<div class="hint">加载中…</div>';
+    try {
+      const j = await (await fetch('/api/session?file=' + encodeURIComponent(file))).json();
+      box.innerHTML = '';
+      const back = document.createElement('div');
+      back.textContent = '‹ 返回课程列表';
+      back.style.cssText = 'font-size:12px;color:#9aa3b2;padding:0 0 8px;cursor:pointer';
+      back.onclick = loadSessions;
+      box.appendChild(back);
+      const es = j.entries || [];
+      if (!es.length) { box.innerHTML += '<div class="hint">这节课没有内容</div>'; return; }
+      for (const e of es) {
+        const d = document.createElement('div');
+        d.style.cssText = 'padding:6px 0;border-bottom:1px solid #1c2230';
+        const t = new Date(e.t).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const who = e.kind === 'talk' ? (e.via === 'text' ? '学生（打字）' : '学生（说话）') : '老师';
+        d.innerHTML = '<div style="font-size:11px;color:#5b6478"></div><div style="font-size:13px;color:#d8dee9;margin-top:2px;word-break:break-word"></div>';
+        d.children[0].textContent = `${t} · ${who}`;
+        d.children[1].textContent = (e.kind === 'talk' ? '学生：' : '') + (e.zh || '');
+        box.appendChild(d);
+      }
+    } catch { box.innerHTML = '<div class="hint">加载失败</div>'; }
+  }
+  async function resumeSession(file) {
+    const box = $('#hostHistList');
+    box.innerHTML = '<div class="hint">正在接上…</div>';
+    try {
+      const j = await (await fetch('/api/session/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file }) })).json();
+      if (!j.ok) { box.innerHTML = '<div class="hint">继续失败</div>'; return; }
+      curFile = j.file || file;
+      await loadSessions();
+    } catch { box.innerHTML = '<div class="hint">继续失败</div>'; }
+  }
+  $('#newSession').onclick = async () => {
+    await fetch('/api/session/new', { method: 'POST' });
+    el.subs.innerHTML = '';
+    el.talkList.innerHTML = '<div class="hint">学生打开 /talk 页面输入中文，这里会显示韩语译文</div>';
+    loadSessions();
+  };
+
+  loadSessions();
+  connectHost();
+  connectView();
+  applyLang();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>课堂同传 · 控制台</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #0f1319; color: #e8edf7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Malgun Gothic", sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 20px 60px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+  h1 { font-size: 19px; margin: 0; font-weight: 600; }
+  .pill { font-size: 12px; color: #9aa3b2; background: #151a22; border: 1px solid #222a36; border-radius: 999px; padding: 4px 10px; }
+  .pill.ok { color: #7ee2a8; border-color: #1f4d36; background: #10241a; }
+  .pill.warn { color: #f0c674; border-color: #4d3f1f; background: #241f10; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; display: inline-block; margin-right: 6px; }
+  .dot.on { background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .card { background: #151a22; border: 1px solid #222a36; border-radius: 12px; padding: 14px 15px; }
+  .card-title { font-size: 12px; color: #9aa3b2; margin-bottom: 10px; letter-spacing: .3px; display: flex; justify-content: space-between; align-items: center; }
+  .card-title.foldable { cursor: pointer; user-select: none; }
+  .arrow { font-size: 11px; color: #5b6478; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  button {
+    background: #1b2130; color: #e8edf7; border: 1px solid #2a3448; border-radius: 9px;
+    padding: 8px 12px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  button:hover { background: #232a3a; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.on { background: #1d4d3a; border-color: #2f6b52; }
+  .hint { font-size: 12px; color: #6b7280; line-height: 1.6; }
+  .meter { width: 100%; height: 6px; background: #10141c; border-radius: 4px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #2f6b52, #7ee2a8); transition: width .12s; }
+  .scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2a3143 transparent; overscroll-behavior: contain; }
+  .scroll-y::-webkit-scrollbar { width: 6px; }
+  .scroll-y::-webkit-scrollbar-thumb { background: #2a3143; border-radius: 3px; }
+  .scroll-y::-webkit-scrollbar-track { background: transparent; }
+  .line { padding: 8px 0; border-bottom: 1px solid #1b2028; }
+  .line .zh { font-size: 15px; line-height: 1.5; }
+  .line .ko { font-size: 12px; color: #6b7280; margin-top: 3px; line-height: 1.4; }
+  .talks .item, .chats .item { padding: 8px 0; border-bottom: 1px solid #1b2028; }
+  .who { font-size: 11px; color: #6b7280; margin-bottom: 3px; }
+  .zh { font-size: 14px; line-height: 1.5; }
+  .ko { font-size: 12px; color: #8b95a7; margin-top: 2px; line-height: 1.4; }
+  input[type=text], input[type=password], textarea {
+    width: 100%; background: #0f1420; border: 1px solid #223047; color: #e8edf7;
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; margin-bottom: 8px;
+  }
+  input[type=checkbox] { accent-color: #2f6b52; }
+  .sess { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #1b2028; font-size: 12px; gap: 8px; }
+  .sess .t { color: #c4ccda; }
+  .sess .c { color: #6b7280; font-size: 11px; }
+  .sess button { padding: 3px 8px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 data-i18n="title">课堂同传 · 控制台</h1>
+    <span class="pill" id="conn">连接中…</span>
+    <span class="pill" id="hostPill"><span class="dot" id="hostDot"></span><span id="hostText">录音端离线</span></span>
+    <select id="uiLang" style="margin-left:auto;flex:0 0 auto;width:auto;font-size:11px;color:#5b6478;background:transparent;border:1px solid #1f2530;border-radius:6px;padding:2px 5px;opacity:.8"><option value="zh">中文</option><option value="ko">한국어</option><option value="en">EN</option></select>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card">
+        <div class="card-title" data-i18n="hostCard">录音端（老师的电脑）</div>
+        <div class="row">
+          <div class="meter" style="flex:1"><i id="hostLevelBar"></i></div>
+        </div>
+        <div class="row">
+          <button id="btnStart" data-i18n="start">▶ 开始收音</button>
+          <button id="btnStop" data-i18n="stop">⏹ 停止收音</button>
+        </div>
+        <div class="hint" id="hostHint">老师打开 host 页并允许麦克风后，这里会显示在线，你可以远程帮他开关。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title foldable" data-fold="apiBox"><span data-i18n="apiCard">翻译服务（DeepSeek API）</span> <span class="arrow">▾</span></div>
+        <div id="apiBox">
+          <input type="password" id="apiKey" data-i18n-ph="apiKeyPh" placeholder="粘贴你的 API Key（sk-...）">
+          <details style="margin-bottom:8px">
+            <summary class="hint" style="cursor:pointer">高级</summary>
+            <input type="text" id="llmBase" data-i18n-ph="apiBasePh" placeholder="接口地址，默认 https://api.deepseek.com/chat/completions">
+            <input type="text" id="llmModel" data-i18n-ph="apiModelPh" placeholder="模型，默认 deepseek-chat">
+          </details>
+          <div class="row">
+            <button id="saveApi" data-i18n="saveApi">保存</button>
+            <span class="hint" id="apiStat"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" data-i18n="modeCard">课堂模式</div>
+        <div class="row">
+          <button id="modeLecture" data-i18n="lecture">🎓 老师讲课</button>
+          <button id="modeAsk" data-i18n="ask">🙋 学生提问</button>
+        </div>
+        <div class="row">
+          <label class="hint" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="talkToggle"> <span data-i18n="talkToggle">学生提问页开放</span></label>
+          <label class="hint" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="stuVoiceToggle"> <span data-i18n="stuVoice">学生语音提问</span></label>
+        </div>
+        <div class="hint" id="modeStat"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title foldable" data-fold="glosBox"><span data-i18n="glosCard">教学设置（提升准确率）</span> <span class="arrow">▾</span></div>
+        <div id="glosBox">
+          <input type="text" id="domain" data-i18n-ph="domainPh" placeholder="课程领域，如：人工智能 / 机器学习 / 韩国近代史">
+          <textarea id="glossary" rows="3" data-i18n-ph="glossPh" placeholder="术语对照，每行一条：原文=译文&#10;例：머신러닝=机器学习"></textarea>
+          <div class="row">
+            <button id="saveGloss" data-i18n="save">保存</button>
+            <span class="hint" id="glossStat"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <div class="card-title foldable" data-fold="subsBox"><span data-i18n="subsCard">实时字幕</span> <span class="arrow">▾</span></div>
+        <div id="subsBox"><div id="subs" class="scroll-y" style="max-height:320px"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title foldable" data-fold="talksBox"><span data-i18n="talksCard">学生提问</span> <span class="arrow">▾</span></div>
+        <div id="talksBox"><div id="talks" class="talks scroll-y" style="max-height:180px"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title foldable" data-fold="chatsBox"><span data-i18n="chatsCard">聊天室</span> <span class="arrow">▾</span></div>
+        <div id="chatsBox"><div id="chats" class="chats scroll-y" style="max-height:180px"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title foldable" data-fold="sessionsBox"><span data-i18n="sessCard">课程记录</span> <span class="arrow">▾</span></div>
+        <div id="sessionsBox">
+          <div id="sessions" class="scroll-y" style="max-height:200px"></div>
+          <div class="row" style="margin-top:10px">
+            <button id="newSession" data-i18n="newSession">开始新的一课</button>
+            <span class="hint" id="curFile"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+
+  // ---------- 多语言 ----------
+  const I18N = {
+    zh: {
+      title: '课堂同传 · 控制台',
+      conn: '连接中…', connOk: '已连接', connOff: '断开，重连中…',
+      hostCard: '录音端（老师的电脑）', start: '▶ 开始收音', stop: '⏹ 停止收音',
+      hostOff: '录音端离线', hostRec: '正在收音', hostRecN: '正在收音 · {n} 个录音端',
+      hostIdle: '在线 · 未收音', hostIdleN: '{n} 个录音端在线 · 未收音',
+      hintOff: '录音端还没连上。让对方打开 host 页并允许麦克风。',
+      hintRec: '正在接收麦克风音频，点「停止收音」可以远程结束。',
+      hintRecN: '⚠ 有多个录音端同时在线，点「停止收音」可以全部停掉。',
+      hintIdle: '录音端已连上但没在收音，点「开始收音」远程打开。',
+      hintStart: '已通知录音端开始收音', hintStop: '已通知录音端停止收音', hintNoHost: '没有在线的录音端',
+      modeCard: '课堂模式', lecture: '🎓 老师讲课', ask: '🙋 学生提问',
+      talkToggle: '学生提问页开放', stuVoice: '学生语音提问',
+      modeAskStat: '当前：学生提问，麦克风收中文，字幕为韩语',
+      modeLecStat: '当前：老师讲课，麦克风收韩/英，字幕为中文',
+      glosCard: '教学设置（提升准确率）', save: '保存', saving: '保存中…', saved: '已保存，下一句生效', saveFail: '保存失败',
+      apiCard: '翻译服务（API）', apiKeyPh: '在这里填你的 API Key',
+      apiBasePh: 'API 接口地址（OpenAI 兼容，可留空用默认）',
+      apiModelPh: '模型名称（可留空用默认）', saveApi: '保存',
+      apiHasKey: '已配置（尾号 {n}）', apiNoKey: '未配置：只显示韩语原文',
+      apiSaved: '已保存，下一句生效', apiFail: '保存失败',
+      domainPh: '课程领域，如：人工智能 / 机器学习 / 韩国近代史',
+      glossPh: '术语对照，每行一条：原文=译文\n例：머신러닝=机器学习',
+      subsCard: '实时字幕', talksCard: '学生提问', chatsCard: '聊天室', sessCard: '课程记录',
+      newSession: '开始新的一课', noSess: '还没有记录', items: '条', current: '当前', resume: '继续', del: '删除', delConfirm: '删除这节课的记录？',
+      anon: '匿名', typed: '打字', voiced: '语音', student: '学生：', cur: '当前：'
+    },
+    ko: {
+      title: '클래스 동시통역 · 콘솔',
+      conn: '연결 중…', connOk: '연결됨', connOff: '끊김, 재연결 중…',
+      hostCard: '녹음기기 (선생님 PC)', start: '▶ 녹음 시작', stop: '⏹ 녹음 중지',
+      hostOff: '녹음기기 오프라인', hostRec: '녹음 중', hostRecN: '녹음 중 · {n}대',
+      hostIdle: '온라인 · 대기 중', hostIdleN: '{n}대 온라인 · 대기 중',
+      hintOff: '녹음기기가 아직 연결되지 않았습니다. 상대방이 host 페이지를 열고 마이크를 허용해야 합니다.',
+      hintRec: '마이크 오디오를 수신 중입니다. 「녹음 중지」로 원격 종료할 수 있습니다.',
+      hintRecN: '⚠ 여러 녹음기기가 동시에 온라인입니다. 「녹음 중지」로 모두 멈출 수 있습니다.',
+      hintIdle: '녹음기기가 연결됐지만 녹음 중이 아닙니다. 「녹음 시작」으로 원격 시작하세요.',
+      hintStart: '녹음기기에 녹음 시작을 알렸습니다', hintStop: '녹음기기에 녹음 중지를 알렸습니다', hintNoHost: '온라인 녹음기기가 없습니다',
+      modeCard: '수업 모드', lecture: '🎓 선생님 강의', ask: '🙋 학생 질문',
+      talkToggle: '학생 질문 페이지 개방', stuVoice: '학생 음성 질문',
+      modeAskStat: '현재: 학생 질문 — 마이크가 중국어를 받고 자막은 한국어',
+      modeLecStat: '현재: 선생님 강의 — 마이크가 한국어/영어를 받고 자막은 중국어',
+      glosCard: '수업 설정 (정확도 향상)', save: '저장', saving: '저장 중…', saved: '저장됨, 다음 문장부터 적용', saveFail: '저장 실패',
+      apiCard: '번역 서비스 (API)', apiKeyPh: '여기에 API Key를 입력하세요',
+      apiBasePh: 'API 주소 (OpenAI 호환, 비워두면 기본값)',
+      apiModelPh: '모델 이름 (비워두면 기본값)', saveApi: '저장',
+      apiHasKey: '설정됨 (끝자리 {n})', apiNoKey: '미설정: 한국어 원문만 표시',
+      apiSaved: '저장됨, 다음 문장부터 적용', apiFail: '저장 실패',
+      domainPh: '과목 분야, 예: 인공지능 / 머신러닝 / 한국근대사',
+      glossPh: '용어 대조, 한 줄에 하나: 원문=번역\n예: 머신러닝=기계학습',
+      subsCard: '실시간 자막', talksCard: '학생 질문', chatsCard: '채팅', sessCard: '수업 기록',
+      newSession: '새 수업 시작', noSess: '기록이 없습니다', items: '개', current: '현재', resume: '계속', del: '삭제', delConfirm: '이 수업 기록을 삭제할까요?',
+      anon: '익명', typed: '타이핑', voiced: '음성', student: '학생: ', cur: '현재: '
+    },
+    en: {
+      title: 'Class Interpreter · Console',
+      conn: 'Connecting…', connOk: 'Connected', connOff: 'Disconnected, reconnecting…',
+      hostCard: "Mic (teacher's PC)", start: '▶ Start', stop: '⏹ Stop',
+      hostOff: 'Mic offline', hostRec: 'Recording', hostRecN: 'Recording · {n} mics',
+      hostIdle: 'Online · idle', hostIdleN: '{n} mics online · idle',
+      hintOff: 'Mic not connected. Ask them to open the host page and allow microphone.',
+      hintRec: 'Receiving microphone audio. Click "Stop" to end remotely.',
+      hintRecN: '⚠ Multiple mics online. "Stop" will stop them all.',
+      hintIdle: 'Mic connected but idle. Click "Start" to begin remotely.',
+      hintStart: 'Told mic to start', hintStop: 'Told mic to stop', hintNoHost: 'No mic online',
+      modeCard: 'Class mode', lecture: '🎓 Lecture', ask: '🙋 Q&A',
+      talkToggle: 'Q&A page open', stuVoice: 'Student voice Q&A',
+      modeAskStat: 'Now: Q&A — mic hears Chinese, subtitles in Korean',
+      modeLecStat: 'Now: Lecture — mic hears Korean/English, subtitles in Chinese',
+      glosCard: 'Class settings (accuracy)', save: 'Save', saving: 'Saving…', saved: 'Saved, applies to next sentence', saveFail: 'Save failed',
+      apiCard: 'Translation service (API)', apiKeyPh: 'Paste your API key here',
+      apiBasePh: 'API endpoint (OpenAI-compatible, leave blank for default)',
+      apiModelPh: 'Model name (leave blank for default)', saveApi: 'Save',
+      apiHasKey: 'Configured (…{n})', apiNoKey: 'Not set: original Korean only',
+      apiSaved: 'Saved, applies to next sentence', apiFail: 'Save failed',
+      domainPh: 'Subject area, e.g. AI / Machine Learning / Modern Korean History',
+      glossPh: 'Term pairs, one per line: source=translation\n e.g. 머신러닝=machine learning',
+      subsCard: 'Live subtitles', talksCard: 'Q&A', chatsCard: 'Chat', sessCard: 'Sessions',
+      newSession: 'New session', noSess: 'No records yet', items: 'items', current: 'current', resume: 'Resume', del: 'Delete', delConfirm: 'Delete this session record?',
+      anon: 'Anonymous', typed: 'typed', voiced: 'voice', student: 'Student: ', cur: 'Current: '
+    }
+  };
+  let lang = localStorage.getItem('admin_lang') || 'zh';
+  if (!I18N[lang]) lang = 'zh';
+  function t(k) { return (I18N[lang] && I18N[lang][k] != null) ? I18N[lang][k] : (I18N.zh[k] != null ? I18N.zh[k] : k); }
+  function tf(k, n) { return t(k).replace('{n}', n); }
+  const el = {
+    conn: $('#conn'), hostPill: $('#hostPill'), hostDot: $('#hostDot'), hostText: $('#hostText'),
+    hostLevelBar: $('#hostLevelBar'), hostHint: $('#hostHint'),
+    btnStart: $('#btnStart'), btnStop: $('#btnStop'),
+    modeLecture: $('#modeLecture'), modeAsk: $('#modeAsk'), modeStat: $('#modeStat'),
+    talkToggle: $('#talkToggle'), stuVoiceToggle: $('#stuVoiceToggle'),
+    domain: $('#domain'), glossary: $('#glossary'), saveGloss: $('#saveGloss'), glossStat: $('#glossStat'),
+    subs: $('#subs'), talks: $('#talks'), chats: $('#chats'), sessions: $('#sessions'),
+    newSession: $('#newSession'), curFile: $('#curFile'), uiLang: $('#uiLang'),
+    apiKey: $('#apiKey'), llmBase: $('#llmBase'), llmModel: $('#llmModel'), saveApi: $('#saveApi'), apiStat: $('#apiStat'),
+  };
+
+  let mode = 'lecture', talkEnabled = true, stuVoiceEnabled = false;
+  let curFile = '', lastId = 0, hostOnline = false;
+  let levelTimer = null;
+  let lastHost = null, connState = 'connecting';
+
+  function applyLang() {
+    document.querySelectorAll('[data-i18n]').forEach((n) => {
+      const v = I18N[lang][n.dataset.i18n];
+      if (v != null) n.textContent = v;
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach((n) => {
+      const v = I18N[lang][n.dataset.i18nPh];
+      if (v != null) n.placeholder = v;
+    });
+    if (lastHost) renderHost(lastHost);
+    applyMode(mode);
+    el.curFile.textContent = curFile ? t('cur') + curFile : '';
+    el.conn.textContent = connState === 'ok' ? t('connOk') : connState === 'off' ? t('connOff') : t('conn');
+  }
+  el.uiLang.value = lang;
+  el.uiLang.onchange = () => { lang = el.uiLang.value; localStorage.setItem('admin_lang', lang); applyLang(); loadSessions(); };
+
+  // ---------- 状态渲染 ----------
+  function renderHost(h) {
+    if (!h) return;
+    lastHost = h;
+    hostOnline = !!h.online;
+    const n = h.count || 0;
+    el.hostDot.classList.toggle('on', hostOnline);
+    if (!hostOnline) {
+      el.hostText.textContent = t('hostOff');
+      el.hostPill.className = 'pill';
+      el.btnStart.disabled = true; el.btnStop.disabled = true;
+      el.hostHint.textContent = t('hintOff');
+    } else {
+      // 在线时两个按钮都可点：状态显示靠 hostState，不拿它锁按钮（避免状态推断偏差导致按钮变灰点不了）
+      el.btnStart.disabled = false; el.btnStop.disabled = false;
+      if (h.recording) {
+        el.hostText.textContent = n > 1 ? tf('hostRecN', n) : t('hostRec');
+        el.hostPill.className = 'pill ok';
+        el.hostHint.textContent = n > 1 ? t('hintRecN') : t('hintRec');
+      } else {
+        el.hostText.textContent = n > 1 ? tf('hostIdleN', n) : t('hostIdle');
+        el.hostPill.className = 'pill ok';
+        el.hostHint.textContent = n > 1 ? t('hintRecN') : t('hintIdle');
+      }
+    }
+  }
+
+  function applyMode(m) {
+    mode = m === 'ask' ? 'ask' : 'lecture';
+    el.modeLecture.classList.toggle('on', mode === 'lecture');
+    el.modeAsk.classList.toggle('on', mode === 'ask');
+    el.modeStat.textContent = mode === 'ask' ? t('modeAskStat') : t('modeLecStat');
+  }
+
+  // ---------- 字幕 ----------
+  function addLine(item) {
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.innerHTML = '<div class="zh"></div><div class="ko"></div>';
+    d.querySelector('.zh').textContent = item.zh || '';
+    d.querySelector('.ko').textContent = item.ko || '';
+    if (item.id) d.dataset.id = item.id;
+    el.subs.appendChild(d);
+    el.subs.scrollTop = el.subs.scrollHeight;
+    return d;
+  }
+  function addTalk(item) {
+    const d = document.createElement('div');
+    d.className = 'item';
+    d.innerHTML = '<div class="who"></div><div class="zh"></div><div class="ko"></div>';
+    d.querySelector('.who').textContent = (item.from || t('anon')) + (item.sid ? '（' + item.sid + '）' : '') + (item.via === 'text' ? ' · ' + t('typed') : ' · ' + t('voiced'));
+    d.querySelector('.zh').textContent = t('student') + (item.zh || '');
+    d.querySelector('.ko').textContent = item.ko || '';
+    el.talks.appendChild(d);
+    el.talks.scrollTop = el.talks.scrollHeight;
+  }
+  function addChat(item) {
+    const d = document.createElement('div');
+    d.className = 'item';
+    d.innerHTML = '<div class="who"></div><div class="zh"></div><div class="ko"></div>';
+    d.querySelector('.who').textContent = (item.from || t('anon')) + (item.sid ? '（' + item.sid + '）' : '');
+    d.querySelector('.zh').textContent = item.zh || '';
+    d.querySelector('.ko').textContent = item.ko || '';
+    if (item.image) { const im = document.createElement('img'); im.src = item.image; im.style.cssText = 'max-width:160px;max-height:160px;border-radius:8px;display:block;margin-top:6px'; d.appendChild(im); }
+    el.chats.appendChild(d);
+    el.chats.scrollTop = el.chats.scrollHeight;
+  }
+  function clearAll() {
+    el.subs.innerHTML = ''; el.talks.innerHTML = ''; el.chats.innerHTML = ''; lastId = 0;
+  }
+  function applyEntries(es) {
+    clearAll();
+    for (const e of es || []) {
+      if (e.kind === 'chat') addChat(e);
+      else if (e.kind === 'talk') addTalk(e);
+      else { addLine(e); if (e.id > lastId) lastId = e.id; }
+    }
+  }
+
+  // ---------- 折叠 ----------
+  document.querySelectorAll('.card-title.foldable').forEach((h) => {
+    const body = document.getElementById(h.dataset.fold);
+    if (!body) return;
+    h.onclick = () => {
+      const hidden = body.style.display === 'none';
+      body.style.display = hidden ? '' : 'none';
+      const a = h.querySelector('.arrow');
+      if (a) a.textContent = hidden ? '▾' : '▸';
+    };
+  });
+
+  // ---------- 课程记录 ----------
+  async function loadSessions() {
+    try {
+      const r = await fetch('/api/sessions'); const j = await r.json();
+      const list = j.list || [];
+      el.sessions.innerHTML = '';
+      if (!list.length) { el.sessions.innerHTML = '<div class="hint">' + t('noSess') + '</div>'; return; }
+      for (const s of list) {
+        const d = document.createElement('div');
+        d.className = 'sess';
+        const t2 = new Date(s.start || s.mtime).toLocaleString(lang === 'ko' ? 'ko-KR' : lang === 'en' ? 'en-US' : 'zh-CN', { hour12: false });
+        d.innerHTML = `<span><span class="t">${t2}</span> <span class="c">${s.count} ${t('items')}${s.file === curFile ? ' · ' + t('current') : ''}</span></span>`;
+        const box = document.createElement('span');
+        const btnResume = document.createElement('button'); btnResume.textContent = t('resume');
+        btnResume.onclick = async () => {
+          const rr = await fetch('/api/session/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: s.file }) });
+          const jj = await rr.json();
+          if (jj.ok) { curFile = jj.file; el.curFile.textContent = t('cur') + jj.file; loadSessions(); }
+        };
+        const btnDel = document.createElement('button'); btnDel.textContent = t('del');
+        btnDel.onclick = async () => {
+          if (!confirm(t('delConfirm'))) return;
+          await fetch('/api/session?file=' + encodeURIComponent(s.file), { method: 'DELETE' });
+          loadSessions();
+        };
+        box.appendChild(btnResume); box.appendChild(btnDel);
+        d.appendChild(box);
+        el.sessions.appendChild(d);
+      }
+    } catch {}
+  }
+
+  // ---------- 初始化 ----------
+  // 翻译服务配置：别人部署时在这里填自己的 key 即可
+  fetch('/api/config').then(r => r.json()).then((c) => {
+    if (c.llmBaseUrl) el.llmBase.value = c.llmBaseUrl;
+    if (c.llmModel) el.llmModel.value = c.llmModel;
+    el.apiStat.textContent = c.hasKey ? tf('apiHasKey', c.keyTail) : t('apiNoKey');
+  }).catch(() => {});
+  el.saveApi.onclick = async () => {
+    el.apiStat.textContent = t('saving');
+    const body = {};
+    if (el.apiKey.value.trim()) body.deepseekApiKey = el.apiKey.value.trim();
+    if (el.llmBase.value.trim()) body.llmBaseUrl = el.llmBase.value.trim();
+    if (el.llmModel.value.trim()) body.llmModel = el.llmModel.value.trim();
+    const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    el.apiStat.textContent = j.ok ? t('apiSaved') : t('apiFail');
+    if (j.ok) el.apiKey.value = '';
+  };
+
+  fetch('/api/info').then(r => r.json()).then((info) => {
+    applyMode(info.mode);    talkEnabled = !!info.talkEnabled;
+    stuVoiceEnabled = !!info.stuVoiceEnabled;
+    el.talkToggle.checked = talkEnabled;
+    el.stuVoiceToggle.checked = stuVoiceEnabled;
+    renderHost(info.host);
+    if (info.domain) el.domain.value = info.domain;
+    if (info.glossary) el.glossary.value = info.glossary;
+    curFile = info.sessionFile || '';
+    el.curFile.textContent = curFile ? t('cur') + curFile : '';
+    loadSessions();
+  }).catch(() => {});
+
+  // ---------- 操作 ----------
+  async function hostCmd(cmd) {
+    const r = await fetch('/api/host-control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd }) });
+    const j = await r.json();
+    if (!j.ok) el.hostHint.textContent = t('hintNoHost');
+    else el.hostHint.textContent = cmd === 'start' ? t('hintStart') : t('hintStop');
+  }
+  el.btnStart.onclick = () => hostCmd('start');
+  el.btnStop.onclick = () => hostCmd('stop');
+
+  async function setMode(m) {
+    if (mode === m) return;
+    const r = await fetch('/api/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: m }) });
+    const j = await r.json();
+    if (j.ok) applyMode(j.mode);
+  }
+  el.modeLecture.onclick = () => setMode('lecture');
+  el.modeAsk.onclick = () => setMode('ask');
+
+  el.talkToggle.onchange = async () => {
+    await fetch('/api/talk-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: el.talkToggle.checked }) });
+  };
+  el.stuVoiceToggle.onchange = async () => {
+    await fetch('/api/stu-voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: el.stuVoiceToggle.checked }) });
+  };
+  el.saveGloss.onclick = async () => {
+    el.glossStat.textContent = t('saving');
+    const r = await fetch('/api/glossary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ domain: el.domain.value, glossary: el.glossary.value }) });
+    const j = await r.json();
+    el.glossStat.textContent = j.ok ? t('saved') : t('saveFail');
+  };
+  el.newSession.onclick = async () => {
+    await fetch('/api/session/new', { method: 'POST' });
+    clearAll();
+    loadSessions();
+  };
+
+  // ---------- WebSocket ----------
+  let ws = null, retry = 0;
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/view`);
+    ws.onopen = () => { retry = 0; connState = 'ok'; el.conn.textContent = t('connOk'); el.conn.className = 'pill ok'; };
+    ws.onclose = () => {
+      connState = 'off'; el.conn.textContent = t('connOff'); el.conn.className = 'pill warn';
+      setTimeout(connect, Math.min(4000, 800 * (++retry)));
+    };
+    ws.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch { return; }
+      if (m.type === 'init') {
+        if (m.host) renderHost(m.host);
+        applyEntries(m.entries || []);
+      } else if (m.type === 'subtitle') {
+        if (m.id > lastId) { lastId = m.id; addLine(m); }
+      } else if (m.type === 'partial') {
+        let n = el.subs.querySelector(`[data-id="${m.id}"]`);
+        if (!n) { n = addLine({ id: m.id, zh: m.zh || '…', ko: m.ko }); lastId = Math.max(lastId, m.id); }
+        n.querySelector('.zh').textContent = m.zh || '…';
+      } else if (m.type === 'partial-cancel') {
+        const n = el.subs.querySelector(`[data-id="${m.id}"]`);
+        if (n) n.remove();
+      } else if (m.type === 'revision') {
+        const n = el.subs.querySelector(`[data-id="${m.id}"]`);
+        if (n) n.querySelector('.zh').textContent = m.zh || '';
+      } else if (m.type === 'talk') {
+        addTalk(m);
+      } else if (m.type === 'chat') {
+        addChat(m);
+      } else if (m.type === 'mode') {
+        applyMode(m.mode);
+      } else if (m.type === 'talkState') {
+        talkEnabled = !!m.enabled; el.talkToggle.checked = talkEnabled;
+      } else if (m.type === 'stuVoice') {
+        stuVoiceEnabled = !!m.enabled; el.stuVoiceToggle.checked = stuVoiceEnabled;
+      } else if (m.type === 'hostState') {
+        renderHost(m);
+      } else if (m.type === 'hostLevel') {
+        const v = Math.max(0, Math.min(1, Number(m.v) || 0));
+        el.hostLevelBar.style.width = (v * 100).toFixed(0) + '%';
+        if (!levelTimer) levelTimer = setTimeout(() => { el.hostLevelBar.style.width = '0%'; levelTimer = null; }, 600);
+      } else if (m.type === 'clear') {
+        clearAll(); loadSessions();
+      } else if (m.type === 'resumed') {
+        applyEntries(m.entries || []);
+        curFile = m.file || curFile; el.curFile.textContent = curFile ? t('cur') + curFile : '';
+        loadSessions();
+      }
+    };
+  }
+  applyLang();
+  connect();
+})();
+</script>
+</body>
+</html>
