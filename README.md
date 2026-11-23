@@ -1,3 +1,48 @@
+# Class Translator
+
+**Real-time Korean → Chinese subtitles for classroom lectures.**
+
+One computer acts as the host (audio capture + speech recognition + translation + web serving). Students scan a QR code and read live subtitles on their phones. Supports lecture mode (Korean/English → Chinese), student Q&A (Chinese → Korean), a classroom chat room, and per-session records.
+
+Speech recognition runs locally with [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (offline, free). Translation uses an LLM API (default: DeepSeek; any OpenAI-compatible endpoint works).
+
+## Pages
+
+| Page | Who | What |
+|---|---|---|
+| `/host` | Teacher (or your laptop) | Captures audio, auto-splits sentences, shows QR code |
+| `/` | Students | Live subtitles, Q&A, chat room (images allowed) |
+| `/admin` | You | Console: remote start/stop teacher's mic, switch modes, view everything |
+| `/talk` | Students (optional) | Minimal Q&A page only |
+
+## Quick start (Windows)
+
+1. Install [Node.js](https://nodejs.org/) 20+
+2. Download three external files (details in the Chinese section below):
+   - whisper.cpp binaries → `bin/whisper/Release/`
+   - `ggml-base-q5_1.bin` → `models/`
+   - `cloudflared.exe` → `bin/`
+3. Run `npm install`
+4. Double-click `启动.bat` (or `node start.mjs`)
+5. Open `http://localhost:8787/admin` and paste your API key
+6. Open `http://localhost:8787/host`, allow microphone, share the QR code
+
+A Cloudflare quick tunnel starts automatically and provides a public HTTPS URL (mobile browsers require HTTPS for microphone access). The URL changes on each launch.
+
+## Tech stack
+
+- **Backend**: Node.js (native `http` + `ws`, no framework)
+- **ASR**: whisper.cpp (C++ inference, BLAS)
+- **Translation**: DeepSeek Chat API (OpenAI-compatible; base URL and model are configurable)
+- **Tunnel**: Cloudflare Tunnel
+- **Frontend**: vanilla HTML/CSS/JS — Web Audio capture, energy-based VAD, Canvas image compression
+
+## License
+
+MIT
+
+---
+
 # 课堂同传 · Class Translator
 
 **韩国老师用韩语（偶尔英语）讲课，学生用手机扫码看中文实时字幕。**
@@ -25,7 +70,7 @@
 老师电脑浏览器(录音)
       │  WebSocket 音频（16k WAV 分段）
       ▼
-  本机 Node 服务 ──► whisper.cpp 识别 ──► DeepSeek 翻译 ──► WebSocket 广播
+  本机 Node 服务 ──► whisper.cpp 识别 ──► 翻译 API ──► WebSocket 广播
       │                                                        │
       └────────── Cloudflare 隧道（公网 https）────────────────┘
                                     │
@@ -84,16 +129,6 @@
 - **学生语音提问**：学生用自己手机说话，服务器识别后广播（需先在控制台开放）
 - **聊天室**：中韩互译，支持发图
 - **课程记录**：每节课一个 JSON 文件，可回看、可「继续上一节」
-
----
-
-## 技术栈
-
-- **后端**：Node.js（原生 http + ws，无框架）
-- **识别**：whisper.cpp（C++ 推理，BLAS 加速）
-- **翻译**：DeepSeek Chat API（OpenAI 兼容，可换 base URL 和模型）
-- **公网**：Cloudflare Tunnel
-- **前端**：原生 HTML/CSS/JS，无框架；Web Audio 采集、能量 VAD、Canvas 压缩图片
 
 ---
 
