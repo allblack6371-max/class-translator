@@ -15,6 +15,10 @@ Speech recognition runs locally with [whisper.cpp](https://github.com/ggml-org/w
 | `/admin` | You | Console: remote start/stop teacher's mic, switch modes, view everything |
 | `/talk` | Students (optional) | Minimal Q&A page only |
 
+![Console](screenshots/console.jpg)
+
+![Live subtitles](screenshots/subtitles.jpg)
+
 ## Quick start (Windows)
 
 1. Install [Node.js](https://nodejs.org/) 20+
@@ -61,6 +65,10 @@ MIT
 | `/` | 学生手机 | 看实时字幕、提问、聊天室（可发图） |
 | `/admin` | 你 | 控制台：远程开会/停止老师收音、切模式、看所有内容、管课程记录 |
 | `/talk` | 学生（可选） | 只提问的极简页 |
+
+![控制台](screenshots/console.jpg)
+
+![实时字幕](screenshots/subtitles.jpg)
 
 ---
 
